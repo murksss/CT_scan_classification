@@ -1,0 +1,76 @@
+from keras.models import load_model
+from keras.utils import load_img, img_to_array
+import numpy as np
+from PyQt5.QtCore import QLine, Qt
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QPixmap, QFont
+
+
+class Classificator(QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+
+        self.file_path = None
+        self.model = load_model('all_scans_21_epochs.h5')
+
+        self.setWindowTitle("Classificator")
+        self.setGeometry(320, 180, 850, 530)
+        self.setFixedSize(860, 530)
+
+        self.file_select_button = QPushButton(self)
+        self.file_select_button.setGeometry(541, 471, 310, 50)
+        self.file_select_button.setText('Select file')
+        self.file_select_button.setFont(QFont('Arial', 20))
+
+        self.img_label = QLabel(self)
+        self.img_label.setGeometry(9, 9, 512, 512)
+        self.img_label.setStyleSheet('border: 1px solid black;')
+        self.img_label.setAlignment(Qt.AlignLeft)
+        self.img_label.setFont(QFont('Arial', 24))
+        self.img_label.setText('Select img please.')
+
+        self.result_label = QLabel(self)
+        self.result_label.setGeometry(541, 9, 310, 450)
+        self.result_label.setStyleSheet('border: 1px solid black;')
+        self.result_label.setAlignment(Qt.AlignLeft)
+        self.result_label.setFont(QFont('Arial', 14))
+        self.result_label.setText('results..')
+
+        self.file_select_button.clicked.connect(self.select_file)
+
+        self.show()
+
+    def select_file(self):
+        try:
+            file_dialog = QFileDialog(self)
+            self.file_path, _ = file_dialog.getOpenFileName(self, "Select file..")
+
+            if self.file_path:
+                pixmap = QPixmap(self.file_path)
+                self.img_label.setPixmap(pixmap.scaled(512, 512))
+                self.predict()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", "This file cannot be opened.")
+
+    def predict(self):
+
+        image = load_img(self.file_path,
+                         target_size=(128, 128)
+                         )
+        input_arr = img_to_array(image)
+        input_arr = np.array([input_arr])  # Convert single image to a batch.
+        prediction = self.model.predict(input_arr)
+
+        if prediction[0][0] >= 0.5:
+            self.result_label.setText(f'Healthy\nPrediction probability: {prediction[0][0]*100}%')
+        else:
+            self.result_label.setText(f'COVID-19\nPrediction probability: {100-prediction[0][0]*100}%')
+        print(prediction)
+
+
+if __name__ == '__main__':
+    app = QApplication([])
+    app.setStyle('Fusion')
+    ex = Classificator()
+    app.exec_()
